@@ -3,9 +3,13 @@ from math import log2
 from torch import Tensor, sort
 
 
-# def num_swapped_pairs(ys_true: Tensor, ys_pred: Tensor) -> int:
-#
-#     pass
+def num_swapped_pairs(ys_true: Tensor, ys_pred: Tensor) -> int:
+    num_correct = 0
+    set_pairs = set(sorted(tuple(zip(ys_true.tolist(), ys_pred.tolist())), key=lambda x: x[0], reverse=True))
+    for i, j in set_pairs:
+        if i == j:
+            num_correct += 1
+    return len(set_pairs) - num_correct
 
 
 def compute_gain(y_value: float, gain_scheme: str) -> float:
