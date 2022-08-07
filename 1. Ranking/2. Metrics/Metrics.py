@@ -51,42 +51,9 @@ def ndcg(ys_true: Tensor, ys_pred: Tensor, gain_scheme: str = 'const') -> float:
         for ind, val in zip(range(2, len(sorted_y)+1), sorted_y[1:]):
             dif = compute_gain(val, gain_scheme) / log2(ind + 1)
             idcg += dif
+
     return float(dcg(ys_true, ys_pred, gain_scheme) / idcg)
 
-
-# def precission_at_k(ys_true: Tensor, ys_pred: Tensor, k: int) -> float:
-#     if ys_true.sum() == 0:
-#         return -1
-#
-#     if k > len(ys_pred):
-#         k = len(ys_pred)
-#
-#     y_labels = []
-#     for i in ys_pred[:k]:
-#         if (i < 0.5) & (i >= 0.0):
-#             y_labels.append(0.0)
-#         elif (i >= 0.5) & (i <= 1.0):
-#             y_labels.append(1.0)
-#
-#     tp = 0
-#     tn = 0
-#     fp = 0
-#     fn = 0
-#     for i, j in zip(ys_true[:k], y_labels):
-#         if (i == 1) & (j == 1):
-#             tp += 1
-#         elif (i == 1) & (j == 0):
-#             fn += 1
-#         elif (i == 0) & (j == 1):
-#             fp += 1
-#         elif (i == 0) & (j == 0):
-#             tn += 1
-#         else:
-#             raise ValueError('Incorrect label in y_true')
-#
-#     #     recall = tp / (tp + fn)
-#     precision_k = tp / (tp + fp)
-#     return precision_k
 
 def precission_at_k(ys_true: Tensor, ys_pred: Tensor, k: int) -> float:
     if ys_true.sum() == 0:
@@ -96,11 +63,10 @@ def precission_at_k(ys_true: Tensor, ys_pred: Tensor, k: int) -> float:
         k = len(ys_pred)
 
     sorted_y = sorted(tuple(zip(ys_true, ys_pred)), key=lambda x: x[1], reverse=True)
-    res = 0
-    for true_l, proba in sorted_y[:k]:
-        res += true_l * proba
+    y_true_list = [int(x) for x, i in sorted_y]
+    true_positives = sum(y_true_list[:k])
 
-    return float(res / k)
+    return true_positives / k
 
 
 def reciprocal_rank(ys_true: Tensor, ys_pred: Tensor) -> float:
@@ -112,8 +78,23 @@ def reciprocal_rank(ys_true: Tensor, ys_pred: Tensor) -> float:
 
 
 def p_found(ys_true: Tensor, ys_pred: Tensor, p_break: float = 0.15 ) -> float:
-    # допишите ваш код здесь
-    pass
+    sorted_y = sorted(tuple(zip(ys_true, ys_pred)), key=lambda x: x[1], reverse=True)
+
+    full_tuple = [(i, *j) for i, j in enumerate(sorted_y)]
+    full_tuple = [(ind, true) for ind, true, _ in full_tuple]
+    p_look = [1]
+    p_rel = [full_tuple[0][1]]
+
+    for ind, true_l in full_tuple[1:]:
+        print(ind, true_l, p_look, p_rel)
+        p_look.append(p_look[ind - 1] * (1 - p_rel[ind - 1]) * (1 - p_break))
+        p_rel.append(true_l)
+
+    pfound = 0
+    for look, rel in tuple(zip(p_look, p_rel)):
+        pfound += look * rel
+
+    return pfound
 
 
 def average_precision(ys_true: Tensor, ys_pred: Tensor) -> float:
