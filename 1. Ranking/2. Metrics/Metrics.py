@@ -1,7 +1,7 @@
 from math import log2
 from torch import Tensor, sort
 
-
+# Не принятое решение
 def num_swapped_pairs(ys_true: Tensor, ys_pred: Tensor) -> int:
     num_correct = 0
     set_pairs = set(sorted(tuple(zip(ys_true.tolist(), ys_pred.tolist())), key=lambda x: x[0], reverse=True))
@@ -54,7 +54,7 @@ def ndcg(ys_true: Tensor, ys_pred: Tensor, gain_scheme: str = 'const') -> float:
 
     return float(dcg(ys_true, ys_pred, gain_scheme) / idcg)
 
-
+# Не принятое решение
 def precission_at_k(ys_true: Tensor, ys_pred: Tensor, k: int) -> float:
     if ys_true.sum() == 0:
         return -1
