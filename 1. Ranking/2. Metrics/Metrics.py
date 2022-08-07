@@ -1,5 +1,4 @@
 from math import log2
-
 from torch import Tensor, sort
 
 
@@ -56,26 +55,84 @@ def ndcg(ys_true: Tensor, ys_pred: Tensor, gain_scheme: str = 'const') -> float:
 
 
 # def precission_at_k(ys_true: Tensor, ys_pred: Tensor, k: int) -> float:
-#     # допишите ваш код здесь
-#     pass
+#     if ys_true.sum() == 0:
+#         return -1
 #
+#     if k > len(ys_pred):
+#         k = len(ys_pred)
 #
-# def reciprocal_rank(ys_true: Tensor, ys_pred: Tensor) -> float:
-#     # допишите ваш код здесь
-#     pass
+#     y_labels = []
+#     for i in ys_pred[:k]:
+#         if (i < 0.5) & (i >= 0.0):
+#             y_labels.append(0.0)
+#         elif (i >= 0.5) & (i <= 1.0):
+#             y_labels.append(1.0)
 #
+#     tp = 0
+#     tn = 0
+#     fp = 0
+#     fn = 0
+#     for i, j in zip(ys_true[:k], y_labels):
+#         if (i == 1) & (j == 1):
+#             tp += 1
+#         elif (i == 1) & (j == 0):
+#             fn += 1
+#         elif (i == 0) & (j == 1):
+#             fp += 1
+#         elif (i == 0) & (j == 0):
+#             tn += 1
+#         else:
+#             raise ValueError('Incorrect label in y_true')
 #
-# def p_found(ys_true: Tensor, ys_pred: Tensor, p_break: float = 0.15 ) -> float:
-#     # допишите ваш код здесь
-#     pass
-#
-#
-def average_precision(ys_true: Tensor, ys_pred: Tensor) -> float:
-    res = 0
-    pos_number = 0
-    for ind, pred_val, true_val in zip(range(1, len(ys_pred) + 1), ys_pred, ys_true):
-        if pred_val == true_val:
-            pos_number += 1
-            res += pos_number / ind
+#     #     recall = tp / (tp + fn)
+#     precision_k = tp / (tp + fp)
+#     return precision_k
 
-    return round(res, 2)
+def precission_at_k(ys_true: Tensor, ys_pred: Tensor, k: int) -> float:
+    if ys_true.sum() == 0:
+        return -1
+
+    if k > len(ys_pred):
+        k = len(ys_pred)
+
+    sorted_y = sorted(tuple(zip(ys_true, ys_pred)), key=lambda x: x[1], reverse=True)
+    res = 0
+    for true_l, proba in sorted_y[:k]:
+        res += true_l * proba
+
+    return float(res / k)
+
+
+def reciprocal_rank(ys_true: Tensor, ys_pred: Tensor) -> float:
+    sorted_tuples = sorted(tuple(zip(ys_true, ys_pred)), key=lambda x: x[1], reverse=True)
+
+    for rank, tup in enumerate(sorted_tuples, start=1):
+        if tup[0] == 1:
+            return 1 / rank
+
+
+def p_found(ys_true: Tensor, ys_pred: Tensor, p_break: float = 0.15 ) -> float:
+    # допишите ваш код здесь
+    pass
+
+
+def average_precision(ys_true: Tensor, ys_pred: Tensor) -> float:
+    sorted_y = sorted(tuple(zip(ys_true, ys_pred)), key=lambda x: x[1], reverse=True)
+
+    if ys_true.sum() == 0:
+        return -1
+
+    test = []
+    for num, val in enumerate(sorted_y, start=1):
+        test.append((num, val[0], val[1]))
+
+    res = 0
+    positive_number = 0
+    for y_tuple in test:
+
+        if y_tuple[1] == 1:
+            positive_number += 1
+            print(y_tuple)
+            res += positive_number / y_tuple[0]
+
+    return res / positive_number
