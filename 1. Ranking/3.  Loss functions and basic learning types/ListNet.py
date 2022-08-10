@@ -15,8 +15,12 @@ class ListNet(torch.nn.Module):
         # укажите архитектуру простой модели здесь
         self.model = torch.nn.Sequential(
             torch.nn.Linear(num_input_features, self.hidden_dim),
-            torch.nn.ReLU(),
-            torch.nn.Linear(self.hidden_dim, 1)
+            torch.nn.Softmax(),
+            torch.nn.Dropout(0.5),
+            torch.nn.Linear(self.hidden_dim, 15),
+            torch.nn.Sigmoid(),
+            torch.nn.Dropout(0.5),
+            torch.nn.Linear(15, 1)
         )
 
     def forward(self, input_1: torch.Tensor) -> torch.Tensor:
@@ -73,22 +77,64 @@ class Solution:
 
     def fit(self) -> List[float]:
         # допишите ваш код здесь
-        pass
+        val_ndcg = []
+        for t in range(self.n_epochs):
+            print(f"Epoch {t + 1}\n-------------------------------")
+            self._train_one_epoch()
+            val_ndcg.append(self._eval_test_set())
+        return val_ndcg
 
     def _calc_loss(self, batch_ys: torch.FloatTensor, batch_pred: torch.FloatTensor) -> torch.FloatTensor:
         P_y_i = torch.softmax(batch_ys, dim=0)
         P_z_i = torch.softmax(batch_pred, dim=0)
 
-        return -torch.sum(P_y_i * torch.log(P_z_i / P_y_i))
+        return -torch.sum(P_y_i * torch.log(P_z_i))  # -torch.sum(P_y_i * torch.log(P_z_i / P_y_i))
 
     def _train_one_epoch(self) -> None:
         self.model.train()
+        ziped_train = list(zip(self.query_ids_train, self.X_train))
+        ziped_y_train = list(zip(self.query_ids_train, self.ys_train))
+        set_idx = sorted([i for i in set(self.query_ids_train)])
+
+        ids_batch = 0
+        for it in set_idx:
+            batch_size = len([features for group, features in ziped_train if group == it])
+            batch = self.X_train[ids_batch: ids_batch + batch_size]
+            batch_y = self.ys_train[ids_batch: ids_batch + batch_size]
+            ids_batch += batch_size
+
+            self.optimizer.zero_grad()
+            if len(batch) > 0:
+                batch_pred = self.model(batch)
+                batch_loss = self._calc_loss(batch_y, batch_pred)
+                batch_loss.backward()
+                self.optimizer.step()
+                # print(f"group: {it}.\n"
+                #       f"nDCG: {batch_loss:.4f}")
 
     def _eval_test_set(self) -> float:
         with torch.no_grad():
             self.model.eval()
             ndcgs = []
             # допишите ваш код здесь
+            ziped_test = list(zip(self.query_ids_test, self.X_test))
+            ziped_y_test = list(zip(self.query_ids_test, self.ys_test))
+            set_idx = sorted([i for i in set(self.query_ids_test)])
+
+            ids_batch = 0
+            for it in set_idx:
+                batch_size = len([features for group, features in ziped_test if group == it])
+                batch = self.X_train[ids_batch: ids_batch + batch_size]
+                batch_y = self.ys_train[ids_batch: ids_batch + batch_size]
+                ids_batch += batch_size
+
+                if len(batch) > 0:
+                    batch_pred = self.model(batch)
+                    # Если NDCG рассчитать невозможно или по каким-то причинам появляется ошибка,
+                    # то NDCG=0 (а не пропускается)??????????
+                    batch_loss = self._ndcg_k(batch_y, batch_pred, self.ndcg_top_k)
+                    ndcgs.append(batch_loss)
+
             return np.mean(ndcgs)
 
     def _ndcg_k(self, ys_true: torch.Tensor, ys_pred: torch.Tensor, ndcg_top_k: int) -> float:
