@@ -15,8 +15,10 @@ class ListNet(torch.nn.Module):
         # укажите архитектуру простой модели здесь
         self.model = torch.nn.Sequential(
             torch.nn.Linear(num_input_features, self.hidden_dim),
-            torch.nn.Softmax(),
-            torch.nn.Dropout(0.5),
+            torch.nn.Softmax(dim=1),
+            torch.nn.Linear(self.hidden_dim, self.hidden_dim),
+            torch.nn.Sigmoid(),
+            torch.nn.Dropout(0.6),
             torch.nn.Linear(self.hidden_dim, 15),
             torch.nn.Sigmoid(),
             torch.nn.Dropout(0.5),
@@ -109,14 +111,11 @@ class Solution:
                 batch_loss = self._calc_loss(batch_y, batch_pred)
                 batch_loss.backward()
                 self.optimizer.step()
-                # print(f"group: {it}.\n"
-                #       f"nDCG: {batch_loss:.4f}")
 
     def _eval_test_set(self) -> float:
         with torch.no_grad():
             self.model.eval()
             ndcgs = []
-            # допишите ваш код здесь
             ziped_test = list(zip(self.query_ids_test, self.X_test))
             ziped_y_test = list(zip(self.query_ids_test, self.ys_test))
             set_idx = sorted([i for i in set(self.query_ids_test)])
@@ -124,8 +123,8 @@ class Solution:
             ids_batch = 0
             for it in set_idx:
                 batch_size = len([features for group, features in ziped_test if group == it])
-                batch = self.X_train[ids_batch: ids_batch + batch_size]
-                batch_y = self.ys_train[ids_batch: ids_batch + batch_size]
+                batch = self.X_test[ids_batch: ids_batch + batch_size]
+                batch_y = self.ys_test[ids_batch: ids_batch + batch_size]
                 ids_batch += batch_size
 
                 if len(batch) > 0:
