@@ -1,29 +1,38 @@
 from math import log2
 from torch import Tensor, sort
 
-# Не принятое решение
-# def num_swapped_pairs(ys_true: Tensor, ys_pred: Tensor) -> int:
-#     num_correct = 0
-#     set_pairs = set(sorted(tuple(zip(ys_true.tolist(), ys_pred.tolist())), key=lambda x: x[0], reverse=True))
-#     for i, j in set_pairs:
-#         if i == j:
-#             num_correct += 1
-#     return len(set_pairs) - num_correct
 
+def num_swapped_pairs(ys_true: torch.Tensor, ys_pred: torch.Tensor) -> int:
+    # Сортируем предсказанные значения и получаем отсортированный массив значений и массив индексов
+    # отсортированных значений
+    ys_pred_sorted, argsort = torch.sort(ys_pred, descending=True, dim=0)
+    # Применяем индексы отсортированных предсказанных значений к истинным значениям и получаем список
+    # истинных значений отсортированный по убыванию вероятности
+    ys_true_sorted = ys_true[argsort]
 
-def num_swapped_pairs(ys_true: Tensor, ys_pred: Tensor) -> int:
-    sum_y = 0
-    for i, j in tuple(zip(ys_true, ys_pred[1:]))[::2]:
-        if i > j:
-            sum_y += 1
-
-    sum_proba = 0
-    for i, j in tuple(zip(ys_true, ys_pred[1:]))[::2]:
-        if i < j:
-            sum_proba += 1
-
-    return sum_y + sum_proba
-
+    # количество документов
+    num_objects = ys_true_sorted.shape[0]
+    # стартовый счетчик
+    swapped_cnt = 0
+    # Берем каждый объект кроме последнего
+    for cur_obj in range(num_objects - 1):
+        # Теперь начинаем сравнивать текущие значение по индексу ИСТИННЫХ ЗНАЧЕНИЙ со следующим истинным значением
+        for next_obj in range(cur_obj + 1, num_objects):
+            # Если текущее значение отсортированных истинных значений меньше последующего(то есть ранг
+            # вышестоящего документа ниже ранга последующего документа)...
+            if ys_true_sorted[cur_obj] < ys_true_sorted[next_obj]:
+                # а так же предсказанное значение вероятности(например если предсказывается она) текущего документа
+                # выше чем предсказанное значение вероятности следующего(а значит нижестоящего) документа
+                if ys_pred_sorted[cur_obj] > ys_pred_sorted[next_obj]:
+                    # то считаем, что эта пара упорядочена неверно
+                    swapped_cnt += 1
+            # А так же если ранг текущего выше следующего
+            elif ys_true_sorted[cur_obj] > ys_true_sorted[next_obj]:
+                # но вероятность ниже
+                if ys_pred_sorted[cur_obj] < ys_pred_sorted[next_obj]:
+                    # то так же считаем, что эта пара упорядочена неверно
+                    swapped_cnt += 1
+    return swapped_cnt
 
 def compute_gain(y_value: float, gain_scheme: str) -> float:
     if gain_scheme == 'const':
@@ -70,18 +79,14 @@ def ndcg(ys_true: Tensor, ys_pred: Tensor, gain_scheme: str = 'const') -> float:
 
 
 # Не принятое решение
-def precission_at_k(ys_true: Tensor, ys_pred: Tensor, k: int) -> float:
+def precission_at_k(ys_true: torch.Tensor, ys_pred: torch.Tensor, k: int) -> float:
     if ys_true.sum() == 0:
         return -1
-
-    if k > len(ys_pred):
-        k = len(ys_pred)
-
-    sorted_y = sorted(tuple(zip(ys_true, ys_pred)), key=lambda x: x[1], reverse=True)
-    y_true_list = [int(x) for x, i in sorted_y]
-    true_positives = sum(y_true_list[:k])
-
-    return true_positives / k
+    _, argsort = torch.sort(ys_pred, descending=True, dim=0)
+    ys_true_sorted = ys_true[argsort]
+    hits = ys_true_sorted[:k].sum()
+    prec = hits / min(ys_true.sum(), k)
+    return float(prec)
 
 
 def reciprocal_rank(ys_true: Tensor, ys_pred: Tensor) -> float:
