@@ -1,5 +1,6 @@
 from math import log2
-from torch import Tensor, sort
+from torch import Tensor
+import torch
 
 
 def num_swapped_pairs(ys_true: torch.Tensor, ys_pred: torch.Tensor) -> int:
@@ -33,6 +34,7 @@ def num_swapped_pairs(ys_true: torch.Tensor, ys_pred: torch.Tensor) -> int:
                     # то так же считаем, что эта пара упорядочена неверно
                     swapped_cnt += 1
     return swapped_cnt
+
 
 def compute_gain(y_value: float, gain_scheme: str) -> float:
     if gain_scheme == 'const':
@@ -78,7 +80,6 @@ def ndcg(ys_true: Tensor, ys_pred: Tensor, gain_scheme: str = 'const') -> float:
     return float(dcg(ys_true, ys_pred, gain_scheme) / idcg)
 
 
-# Не принятое решение
 def precission_at_k(ys_true: torch.Tensor, ys_pred: torch.Tensor, k: int) -> float:
     if ys_true.sum() == 0:
         return -1
